@@ -3,6 +3,8 @@ flutter NestedScrollView 下拉刷新插件
 
 
 在 flutter 项目中使用
+
+![NestScrollView 设置下拉刷新效果](demo_images/mt-22.gif)
 ***
 
 #### 1  添加依赖
