@@ -7,16 +7,28 @@ import 'custom_refresh_state.dart';
 export 'custom_refresh_controller.dart';
 export 'custom_refresh_state.dart';
 
-
 class CustomRefreshPage extends StatefulWidget {
   ///子控件
   Widget child;
+
   ///刷新控制器
   CustomRefreshController customRefreshController;
-  ///是否输出日志
-  bool isRefreshLog ;
 
-  CustomRefreshPage({@required this.child,this.customRefreshController,this.isRefreshLog=false});
+  ///是否输出日志
+  bool isRefreshLog;
+
+  ///刷新圆圈的大小
+  double progressIconSize;
+  Color progressColor;
+  Color backgroundColor;
+
+  CustomRefreshPage(
+      {@required this.child,
+      this.customRefreshController,
+      this.isRefreshLog = false,
+      this.progressIconSize = 28,
+      this.progressColor,
+      this.backgroundColor});
 
   @override
   State<StatefulWidget> createState() {
@@ -26,8 +38,9 @@ class CustomRefreshPage extends StatefulWidget {
 
 class _CustomRefreshPageState extends State<CustomRefreshPage> {
   CustomRefreshController customRefreshController;
+
   ///用于计算的最大下拉距离
-  double defaultHeight = 80;
+  double defaultHeight = 40;
 
   ///当前下拉的距离
   double offestHeight = 0;
@@ -54,11 +67,14 @@ class _CustomRefreshPageState extends State<CustomRefreshPage> {
           onNotification: (ScrollNotification notification) {
             ///当前滑动的距离
             double scrollPixe = notification.metrics.pixels;
+
             ///当前可滑动的最大距离
             double totalScrollPixe = notification.metrics.maxScrollExtent;
             double extentAfter = notification.metrics.extentAfter;
+
             ///当前滑动的进度比
             double progress = scrollPixe / totalScrollPixe;
+
             ///只有是向下滑动的时候才启动下拉刷新
             if (scrollPixe < 0) {
               if (currentRefreshState == RefreshState.normal ||
@@ -90,12 +106,14 @@ class _CustomRefreshPageState extends State<CustomRefreshPage> {
 
               ///滑动方向计算
               double flagScrollPixe = scrollPixe.abs() - preScrollPixe;
+
               ///保存滑动标识
               preScrollPixe = scrollPixe.abs();
               if (flagScrollPixe > 0) {
                 ///向下滑动
                 ///正常向下滑动
                 logd("向下");
+
                 ///设置回调
                 if (widget.customRefreshController != null &&
                     widget.customRefreshController.onScrollListener != null) {
@@ -105,6 +123,7 @@ class _CustomRefreshPageState extends State<CustomRefreshPage> {
               } else {
                 ///向上滑动
                 logd("向上");
+
                 ///设置回调
                 if (widget.customRefreshController != null &&
                     widget.customRefreshController.onScrollListener != null) {
@@ -142,16 +161,19 @@ class _CustomRefreshPageState extends State<CustomRefreshPage> {
   ///开始下拉刷新
   void startRefresh() {
     ///创建计时 TimerUtil
-    TimerUtil timerUtil = new TimerUtil(mInterval: 100, mTotalTime: animationTime);
+    TimerUtil timerUtil =
+        new TimerUtil(mInterval: 100, mTotalTime: animationTime);
 
     ///设置计时回调
     timerUtil.setOnTimerTickCallback((value) {
       ///计算下拉刷新的控件的透明度
       offestOpacity = value / animationTime;
+
       ///透明度为1的时候开始刷新
       if (offestOpacity == 1) {
         ///更新刷新状态
         currentRefreshState = RefreshState.refresh;
+
         ///开始刷新时回调
         if (widget.customRefreshController != null &&
             widget.customRefreshController.onRefreshListener != null) {
@@ -160,6 +182,7 @@ class _CustomRefreshPageState extends State<CustomRefreshPage> {
       }
       setState(() {});
     });
+
     ///开始正计时
     /// 0- 500
     timerUtil.startTimer();
@@ -168,11 +191,14 @@ class _CustomRefreshPageState extends State<CustomRefreshPage> {
   ///结束下拉刷新
   void closeRefresh() {
     ///创建计时 TimerUtil
-    TimerUtil timerUtil = new TimerUtil(mInterval: 100, mTotalTime: animationTime);
+    TimerUtil timerUtil =
+        new TimerUtil(mInterval: 100, mTotalTime: animationTime);
+
     ///设置计时回调
     timerUtil.setOnTimerTickCallback((value) {
       ///计算下拉刷新的控件的透明度
       offestOpacity = value / animationTime;
+
       ///透明度为0的时候刷新结束 恢复正常
       if (offestOpacity == 0) {
         ///更新刷新状态
@@ -214,15 +240,15 @@ class _CustomRefreshPageState extends State<CustomRefreshPage> {
         alignment: Alignment.topCenter,
         child: Container(
           child: Container(
-            margin: EdgeInsets.only(top: 40),
-            height: 35,
-            width: 35,
+            margin: EdgeInsets.only(top: offestOpacity * defaultHeight),
+            height: widget.progressIconSize,
+            width: widget.progressIconSize,
             child: Opacity(
               opacity: offestOpacity,
               child: CircularProgressIndicator(
                 value: cirProgress,
-                backgroundColor: Colors.white,
-                valueColor: new AlwaysStoppedAnimation<Color>(Colors.red),
+                backgroundColor: widget.backgroundColor??Theme.of(context).primaryColor,
+                valueColor: new AlwaysStoppedAnimation<Color>(widget.progressColor??Theme.of(context).accentColor),
               ),
             ),
           ),
@@ -232,8 +258,8 @@ class _CustomRefreshPageState extends State<CustomRefreshPage> {
   }
 
   ///日志输出
-  void logd(String message){
-    if(widget.isRefreshLog){
+  void logd(String message) {
+    if (widget.isRefreshLog) {
       print("----【刷新组件】 $message");
     }
   }

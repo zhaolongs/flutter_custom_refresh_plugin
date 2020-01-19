@@ -3,6 +3,9 @@ import 'dart:async';
 
 import 'package:flutter/services.dart';
 import 'package:custom_refresh_plugin/custom_refresh_plugin.dart';
+import 'package:custom_refresh_plugin/custom_refresh_page.dart';
+
+import 'main_find_pages.dart';
 
 void main() => runApp(MyApp());
 
@@ -43,13 +46,15 @@ class _MyAppState extends State<MyApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      theme: ThemeData(
+        accentColor: Colors.red,
+        primaryColor: Colors.white,
+      ),
       home: Scaffold(
         appBar: AppBar(
-          title: const Text('Plugin example app'),
+          title: const Text('NestScrollerView'),
         ),
-        body: Center(
-          child: Text('Running on: $_platformVersion\n'),
-        ),
+        body: MainFindPage(),
       ),
     );
   }
