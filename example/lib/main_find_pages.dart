@@ -47,6 +47,12 @@ class MainFindPageState extends State with SingleTickerProviderStateMixin {
         customRefreshController.closeRefresh();
       });
     });
+    customRefreshController.setOnLoadMoreListener(() {
+      print("上拉加载刷新了");
+      Future.delayed(Duration(milliseconds: 5000),(){
+        customRefreshController.closeLoadMore();
+      });
+    });
     customRefreshController.setOnRefreshFinishListener(() {
       print("下拉刷新结束了");
     });
@@ -66,13 +72,17 @@ class MainFindPageState extends State with SingleTickerProviderStateMixin {
       ///可滑动的布局
       body: CustomRefreshPage(
         child: buildBodyFunction(),
+        isRefreshLog: true,
+        useShowLoadMore: true,
         customRefreshController: customRefreshController,
       ),
     );
   }
 
+  ScrollController scrollController = new ScrollController();
   Widget buildBodyFunction() {
     return NestedScrollView(
+      controller: scrollController,
       headerSliverBuilder: (BuildContext context, bool flag) {
         return [
           SliverAppBar(

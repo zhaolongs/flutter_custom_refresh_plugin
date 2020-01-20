@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flustars/flustars.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -14,6 +16,8 @@ class CustomRefreshPage extends StatefulWidget {
   ///刷新控制器
   CustomRefreshController customRefreshController;
 
+  ScrollController listViewScrollController;
+
   ///是否输出日志
   bool isRefreshLog;
 
@@ -22,13 +26,25 @@ class CustomRefreshPage extends StatefulWidget {
   Color progressColor;
   Color backgroundColor;
 
-  CustomRefreshPage(
-      {@required this.child,
-      this.customRefreshController,
-      this.isRefreshLog = false,
-      this.progressIconSize = 28,
-      this.progressColor,
-      this.backgroundColor});
+  double progressFooterIconSize;
+  Color progressFooterColor;
+  Color backgroundFooterColor;
+
+  ///是否需要显示加载加载更多圆圈
+  bool useShowLoadMore = false;
+
+  CustomRefreshPage({
+    @required this.child,
+    this.customRefreshController,
+    this.isRefreshLog = false,
+    this.useShowLoadMore = false,
+    this.progressIconSize = 28,
+    this.progressColor,
+    this.backgroundColor,
+    this.progressFooterIconSize = 28,
+    this.progressFooterColor,
+    this.backgroundFooterColor,
+  });
 
   @override
   State<StatefulWidget> createState() {
@@ -41,6 +57,8 @@ class _CustomRefreshPageState extends State<CustomRefreshPage> {
 
   ///用于计算的最大下拉距离
   double defaultHeight = 40;
+
+  double defaultFooterHeight = 40;
 
   ///当前下拉的距离
   double offestHeight = 0;
@@ -57,95 +75,63 @@ class _CustomRefreshPageState extends State<CustomRefreshPage> {
   ///上一次滑动的距离
   double preScrollPixe = 0;
 
+  ///true 显示加载更多 flase 不显示
+  bool isShowLoadMore = false;
+
+  ///是否正在加载中
+  bool isLoadInding = false;
+
   RefreshState currentRefreshState = RefreshState.normal;
+
+  ScrollController scrollController = new ScrollController();
 
   Widget buildScroll(Widget childWidget) {
     return Scrollbar(
       //进度条
-      // 监听滚动通知
+      /// 监听滚动通知
       child: NotificationListener<ScrollNotification>(
+
+          ///监控到notification后的回调方法。
           onNotification: (ScrollNotification notification) {
-            ///当前滑动的距离
-            double scrollPixe = notification.metrics.pixels;
+            ScrollMetrics metrics = notification.metrics;
+            // 当前位置
+            double pixels = metrics.pixels;
 
-            ///当前可滑动的最大距离
-            double totalScrollPixe = notification.metrics.maxScrollExtent;
-            double extentAfter = notification.metrics.extentAfter;
+            ///视口底部距离列表底部有多大
+            double extentAfter = metrics.extentAfter;
+            //视口顶部距离列表顶部有多大
+            double extentBefore = metrics.extentBefore;
+            //视口范围内的列表长度
+            double extentInside = metrics.extentInside;
+            //视口长度
+            double viewportDimension = metrics.viewportDimension;
+            //是否在顶部或底部
+            bool atEdge = metrics.atEdge;
+            //垂直或水平滚动
+            Axis axis = metrics.axis;
+            // 滚动方向是down还是up
+            AxisDirection axisDirection = metrics.axisDirection;
 
-            ///当前滑动的进度比
-            double progress = scrollPixe / totalScrollPixe;
+            //是否越过边界
+            bool outOfRange = metrics.outOfRange;
 
-            ///只有是向下滑动的时候才启动下拉刷新
-            if (scrollPixe < 0) {
-              if (currentRefreshState == RefreshState.normal ||
-                  currentRefreshState == RefreshState.todown) {
-                if (scrollPixe.abs() < defaultHeight / 2) {
-                  ///从0到1
-                  offestOpacity = scrollPixe.abs() / (defaultHeight / 2);
+            //最大滚动距离，列表长度-视口长度
+            double maxScrollExtent = metrics.maxScrollExtent;
+            //最小滚动距离
+            double minScrollExtent = metrics.minScrollExtent;
 
-                  ///进度一直可以是0
-                  offestHeight = 0;
-                } else {
-                  ///为1
-                  offestOpacity = 1.0;
+//            print(
+//                "是否越过边界 $outOfRange 当前位置 $pixels 是否在顶部或底部$atEdge 视口底部距离列表底部 $extentAfter 视口顶部距离列表顶部有多大 $extentBefore 列表长度 $extentInside");
+            print('------------------------');
 
-                  ///进度转变
-                  offestHeight = scrollPixe.abs() / 2;
-                  if (offestHeight > defaultHeight) {
-                    offestHeight = defaultHeight + 1;
-                    if (currentRefreshState != RefreshState.refresh) {
-                      currentRefreshState = RefreshState.refresh;
-                      onCustomRefresh();
-                    }
-                  }
-                }
-              } else {
-                offestOpacity = 1.0;
-                offestHeight = defaultHeight;
-              }
-
-              ///滑动方向计算
-              double flagScrollPixe = scrollPixe.abs() - preScrollPixe;
-
-              ///保存滑动标识
-              preScrollPixe = scrollPixe.abs();
-              if (flagScrollPixe > 0) {
-                ///向下滑动
-                ///正常向下滑动
-                logd("向下");
-
-                ///设置回调
-                if (widget.customRefreshController != null &&
-                    widget.customRefreshController.onScrollListener != null) {
-                  widget.customRefreshController
-                      .onScrollListener(scrollPixe, totalScrollPixe, true);
-                }
-              } else {
-                ///向上滑动
-                logd("向上");
-
-                ///设置回调
-                if (widget.customRefreshController != null &&
-                    widget.customRefreshController.onScrollListener != null) {
-                  widget.customRefreshController
-                      .onScrollListener(scrollPixe, totalScrollPixe, false);
-                }
-                if (currentRefreshState == RefreshState.refresh) {
-                  offestHeight = null;
-                }
-              }
-              if (offestHeight != null) {
-                cirProgress = offestHeight / defaultHeight;
-              } else {
-                cirProgress = null;
-              }
-              setState(() {});
+            if (outOfRange) {
+              //重新构建
+              controllNotification(notification);
             }
-            //重新构建
-            logd(
-                " scrollPixe: $scrollPixe  totalScrollPixe:$totalScrollPixe  extentAfter:$extentAfter $progress");
             return false;
           },
+
+          ///被监控的子widget树
           child: childWidget),
     );
   }
@@ -229,6 +215,12 @@ class _CustomRefreshPageState extends State<CustomRefreshPage> {
       widget.customRefreshController.closeRefresh = () {
         closeRefresh();
       };
+      widget.customRefreshController.closeLoadMore = () {
+        setState(() {
+          isShowLoadMore=false;
+          isLoadInding = false;
+        });
+      };
     }
   }
 
@@ -247,8 +239,28 @@ class _CustomRefreshPageState extends State<CustomRefreshPage> {
               opacity: offestOpacity,
               child: CircularProgressIndicator(
                 value: cirProgress,
-                backgroundColor: widget.backgroundColor??Theme.of(context).primaryColor,
-                valueColor: new AlwaysStoppedAnimation<Color>(widget.progressColor??Theme.of(context).accentColor),
+                backgroundColor:
+                    widget.backgroundColor ?? Theme.of(context).primaryColor,
+                valueColor: new AlwaysStoppedAnimation<Color>(
+                    widget.progressColor ?? Theme.of(context).accentColor),
+              ),
+            ),
+          ),
+        ),
+      ),
+      Align(
+        alignment: Alignment.bottomCenter,
+        child: Container(
+          child: Container(
+            margin: EdgeInsets.only(bottom: defaultFooterHeight),
+            height: widget.progressFooterIconSize,
+            width: widget.progressFooterIconSize,
+            child: Opacity(
+              opacity: widget.useShowLoadMore ? (isShowLoadMore ? 1.0 : 0) : 0,
+              child: CircularProgressIndicator(
+                backgroundColor: Colors.blue,
+                valueColor: new AlwaysStoppedAnimation<Color>(
+                    widget.progressColor ?? Theme.of(context).accentColor),
               ),
             ),
           ),
@@ -261,6 +273,103 @@ class _CustomRefreshPageState extends State<CustomRefreshPage> {
   void logd(String message) {
     if (widget.isRefreshLog) {
       print("----【刷新组件】 $message");
+    }
+  }
+
+  void controllNotification(ScrollNotification notification) {
+    ///当前滑动的距离
+    double scrollPixe = notification.metrics.pixels;
+
+    ///当前可滑动的最大距离
+    double totalScrollPixe = notification.metrics.maxScrollExtent;
+
+    ///当前滑动的进度比
+    double progress = scrollPixe / totalScrollPixe;
+
+    ///只有向上滑动时 才会有上拉加载更多
+    if (scrollPixe > totalScrollPixe && !isLoadInding) {
+      ///加载更多数据回调
+      if (widget.customRefreshController != null &&
+          widget.customRefreshController.onLoadMoreListener != null) {
+        widget.customRefreshController.onLoadMoreListener();
+        ///正在加载中
+        isLoadInding = true;
+        ///显示加载更多圆圈
+        if (widget.useShowLoadMore) {
+          isShowLoadMore = true;
+          setState(() {
+
+          });
+        }
+        return;
+      }
+    }
+
+    ///只有是向下滑动的时候才启动下拉刷新
+    if (scrollPixe < 0) {
+      if (currentRefreshState == RefreshState.normal ||
+          currentRefreshState == RefreshState.todown) {
+        if (scrollPixe.abs() < defaultHeight / 2) {
+          ///从0到1
+          offestOpacity = scrollPixe.abs() / (defaultHeight / 2);
+
+          ///进度一直可以是0
+          offestHeight = 0;
+        } else {
+          ///为1
+          offestOpacity = 1.0;
+
+          ///进度转变
+          offestHeight = scrollPixe.abs() / 2;
+          if (offestHeight > defaultHeight) {
+            offestHeight = defaultHeight + 1;
+            if (currentRefreshState != RefreshState.refresh) {
+              currentRefreshState = RefreshState.refresh;
+              onCustomRefresh();
+            }
+          }
+        }
+      } else {
+        offestOpacity = 1.0;
+        offestHeight = defaultHeight;
+      }
+
+      ///滑动方向计算
+      double flagScrollPixe = scrollPixe.abs() - preScrollPixe;
+
+      ///保存滑动标识
+      preScrollPixe = scrollPixe.abs();
+      if (flagScrollPixe > 0) {
+        ///向下滑动
+        ///正常向下滑动
+        logd("向下");
+
+        ///设置回调
+        if (widget.customRefreshController != null &&
+            widget.customRefreshController.onScrollListener != null) {
+          widget.customRefreshController
+              .onScrollListener(scrollPixe, totalScrollPixe, true);
+        }
+      } else {
+        ///向上滑动
+        logd("向上");
+
+        ///设置回调
+        if (widget.customRefreshController != null &&
+            widget.customRefreshController.onScrollListener != null) {
+          widget.customRefreshController
+              .onScrollListener(scrollPixe, totalScrollPixe, false);
+        }
+        if (currentRefreshState == RefreshState.refresh) {
+          offestHeight = null;
+        }
+      }
+      if (offestHeight != null) {
+        cirProgress = offestHeight / defaultHeight;
+      } else {
+        cirProgress = null;
+      }
+      setState(() {});
     }
   }
 }

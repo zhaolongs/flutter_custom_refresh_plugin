@@ -6,9 +6,13 @@ class CustomRefreshController {
 
   ///结束下拉刷新
   Function() closeRefresh;
+  ///结束上拉加载
+  Function() closeLoadMore;
 
   ///下拉刷新兼听
   Function() onRefreshListener;
+  ///上拉加载更多兼听
+  Function() onLoadMoreListener;
 
   ///设置刷新完成兼听
   Function() onRefreshFinishListener;
@@ -20,6 +24,9 @@ class CustomRefreshController {
   ///设置下拉刷新兼听
   void setOnRefreshListener(Function() listener) {
     this.onRefreshListener = listener;
+  }
+  void setOnLoadMoreListener(Function() listener) {
+    this.onLoadMoreListener = listener;
   }
   ///设置下拉滑动距离兼听
   ///[scrollPixe] 滑动距离兼听
